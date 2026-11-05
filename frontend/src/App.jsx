@@ -17,20 +17,17 @@ export default function App() {
 
   async function refreshHistory() {
     try {
-      const items = await fetchHistory();
-      setHistory(items);
+      setHistory(await fetchHistory());
     } catch {
-      // history is non-critical; ignore failures silently
+      // history is non-critical
     }
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (!repoUrl.trim()) return;
+  async function runAnalysis(url) {
     setLoading(true);
     setError("");
     try {
-      const data = await analyzeRepo(repoUrl.trim());
+      const data = await analyzeRepo(url);
       setResult(data);
       refreshHistory();
     } catch (err) {
@@ -41,12 +38,21 @@ export default function App() {
     }
   }
 
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (repoUrl.trim()) runAnalysis(repoUrl.trim());
+  }
+
+  function handleReanalyze(url) {
+    setRepoUrl(url);
+    runAnalysis(url);
+  }
+
   async function handleHistorySelect(id) {
     setLoading(true);
     setError("");
     try {
-      const data = await fetchAnalysisById(id);
-      setResult(data);
+      setResult(await fetchAnalysisById(id));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -55,37 +61,65 @@ export default function App() {
   }
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>🔍 GitHub Code Analyzer</h1>
-        <p>Paste a public GitHub repository link to measure code quality, complexity, and maintainability.</p>
+    <>
+      <header className="topbar">
+        <div className="topbar-inner">
+          <div className="brand-mark" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="16 18 22 12 16 6" />
+              <polyline points="8 6 2 12 8 18" />
+            </svg>
+          </div>
+          <div>
+            <div className="brand-title">GitHub Code Analyzer</div>
+            <div className="brand-sub">Code quality, security and repository health reports</div>
+          </div>
+        </div>
       </header>
 
-      <form className="analyze-form" onSubmit={handleSubmit}>
-        <input
-          type="text"
-          placeholder="https://github.com/owner/repo"
-          value={repoUrl}
-          onChange={(e) => setRepoUrl(e.target.value)}
-          disabled={loading}
-        />
-        <button type="submit" disabled={loading}>
-          {loading ? "Analyzing..." : "Analyze"}
-        </button>
-      </form>
-
-      {error && <div className="error-banner">{error}</div>}
-      {loading && <div className="loading-banner">Cloning repository and computing metrics... this can take a moment for large repos.</div>}
-
-      <div className="main-layout">
-        <div className="main-content">
-          {result ? <Dashboard data={result} /> : !loading && <div className="empty-state">Your analysis results will appear here.</div>}
+      <div className="app">
+        <div className="search-card">
+          <h1>Analyze a repository</h1>
+          <p>Paste the link to a public GitHub repository to generate a full quality report.</p>
+          <form className="analyze-form" onSubmit={handleSubmit}>
+            <input
+              type="text"
+              placeholder="https://github.com/owner/repository"
+              aria-label="GitHub repository URL"
+              value={repoUrl}
+              onChange={(e) => setRepoUrl(e.target.value)}
+              disabled={loading}
+            />
+            <button className="btn" type="submit" disabled={loading}>
+              {loading ? "Analyzing..." : "Analyze"}
+            </button>
+          </form>
         </div>
-        <aside className="sidebar">
-          <h3>Recent Analyses</h3>
-          <History items={history} onSelect={handleHistorySelect} />
-        </aside>
+
+        {error && <div className="notice notice-danger">{error}</div>}
+        {loading && (
+          <div className="notice notice-info">
+            <span>
+              <span className="spinner" />
+              Cloning the repository and computing metrics. Large repositories can take a minute.
+            </span>
+          </div>
+        )}
+
+        <div className="main-layout">
+          <main className="main-content">
+            {result ? (
+              <Dashboard data={result} onReanalyze={handleReanalyze} busy={loading} />
+            ) : (
+              !loading && <div className="empty-state">Your analysis report will appear here.</div>
+            )}
+          </main>
+          <aside className="sidebar">
+            <h3>Recent analyses</h3>
+            <History items={history} onSelect={handleHistorySelect} />
+          </aside>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

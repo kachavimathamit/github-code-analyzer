@@ -35,14 +35,14 @@ Open the URL Vite prints (default `http://localhost:5173`). The frontend proxies
 
 ## Metrics computed
 
-- Total/analyzed/skipped files, total bytes
-- Total, code, comment, and blank lines
-- Language breakdown (by extension) with per-language line/file counts
-- Function count (regex-based, per common languages)
-- Cyclomatic complexity (decision-point count) per file and averaged
-- Comment ratio
-- Maintainability index (0–100, Microsoft-style approximation)
-- Overall quality score (0–100) and letter grade (A–F)
-- Top 10 largest files, top 10 most complex files
+All results appear in the dashboard, grouped into sections:
 
-Only public repositories can be analyzed (no auth token is used, so GitHub API rate limits apply: ~60 requests/hour per IP).
+- **Overview** - file/line/function counts, a 10-category weighted scorecard (radar + bars), overall grade (A-F) and prioritized recommendations
+- **Code quality** - language breakdown, maintainability index, cyclomatic complexity per function, function length distribution, max nesting depth per function, comment ratio, **duplication rate** (copy-paste detection), largest/most complex files
+- **Testing** - test-to-source code ratio (coverage proxy), detected test frameworks, CI presence
+- **Security** - **hardcoded secrets scan** (masked values) and **known vulnerable dependencies** via OSV.dev
+- **Dependencies** - dependency counts, outdated (major versions behind), deprecated and unpinned packages (npm + PyPI registries; package.json and requirements.txt)
+- **Code hygiene** - TODO/FIXME/HACK density, naming-convention consistency and very short names, potentially unused exports/functions (heuristic)
+- **Repository health** - license, README, CI, commit activity (30/90 days), contributors, last push
+
+Only public repositories can be analyzed. GitHub API calls are unauthenticated by default (about 60 requests/hour per IP); set a `GITHUB_TOKEN` environment variable before starting the backend to raise the limit.
