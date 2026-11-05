@@ -33,7 +33,7 @@ export default function Quality({ data }) {
                 <XAxis dataKey="name" {...chartAxis} tickLine={false} />
                 <YAxis {...chartAxis} tickLine={false} axisLine={false} />
                 <Tooltip {...chartTooltip} cursor={{ fill: "#f1f4fa" }} />
-                <Bar dataKey="lines" name="Lines" fill="#2457d6" radius={[4, 4, 0, 0]} />
+                <Bar isAnimationActive={false} dataKey="lines" name="Lines" fill="#2457d6" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -42,7 +42,7 @@ export default function Quality({ data }) {
           <div style={{ height: 260 }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={languageData} dataKey="files" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2}>
+                <Pie isAnimationActive={false} data={languageData} dataKey="files" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2}>
                   {languageData.map((_, i) => (
                     <Cell key={i} fill={chartColors[i % chartColors.length]} />
                   ))}
@@ -64,7 +64,7 @@ export default function Quality({ data }) {
                 <XAxis dataKey="bucket" {...chartAxis} tickLine={false} />
                 <YAxis {...chartAxis} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip {...chartTooltip} cursor={{ fill: "#f1f4fa" }} />
-                <Bar dataKey="count" name="Functions" fill="#0e9f8e" radius={[4, 4, 0, 0]} />
+                <Bar isAnimationActive={false} dataKey="count" name="Functions" fill="#0e9f8e" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

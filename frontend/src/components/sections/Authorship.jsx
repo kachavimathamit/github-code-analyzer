@@ -46,7 +46,7 @@ export default function Authorship({ data }) {
               <XAxis dataKey="date" {...chartAxis} tickLine={false} minTickGap={40} />
               <YAxis {...chartAxis} tickLine={false} axisLine={false} allowDecimals={false} />
               <Tooltip {...chartTooltip} />
-              <Area type="monotone" dataKey="commits" stroke="#2457d6" fill="#2457d6" fillOpacity={0.15} strokeWidth={2} />
+              <Area isAnimationActive={false} type="monotone" dataKey="commits" stroke="#2457d6" fill="#2457d6" fillOpacity={0.15} strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -67,7 +67,7 @@ export default function Authorship({ data }) {
           <div style={{ height: 230 }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={85} paddingAngle={2}>
+                <Pie isAnimationActive={false} data={pieData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={85} paddingAngle={2}>
                   {pieData.map((_, i) => (
                     <Cell key={i} fill={chartColors[i % chartColors.length]} />
                   ))}

@@ -483,17 +483,11 @@ a:hover {
 .bar-warning { background: #e0a021; }
 .bar-danger { background: #d4504f; }
 
-.score-layout {
+.score-grid {
   display: grid;
-  grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
-  gap: 20px;
-  align-items: center;
-}
-
-.score-list {
-  display: flex;
-  flex-direction: column;
-  gap: 11px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 28px;
+  margin-top: 8px;
 }
 
 .score-row-top {
@@ -664,6 +658,6 @@ tr:last-child td {
   .main-layout { grid-template-columns: 1fr; }
   .sidebar { position: static; }
   .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .grid-3, .grid-2, .score-layout { grid-template-columns: 1fr; }
+  .grid-3, .grid-2, .score-grid { grid-template-columns: 1fr; }
   .repo-header { flex-direction: column; align-items: flex-start; }
 }

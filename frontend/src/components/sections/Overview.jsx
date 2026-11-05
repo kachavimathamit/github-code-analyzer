@@ -18,32 +18,30 @@ export default function Overview({ data }) {
       </div>
 
       <Card title="Quality scorecard" subtitle="Each category is scored 0-100; the overall grade is a weighted average of available categories.">
-        <div className="score-layout">
-          <div style={{ height: 300 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={radarData} outerRadius="58%" margin={{ top: 10, right: 50, bottom: 10, left: 50 }}>
-                <PolarGrid stroke="#dfe5ee" />
-                <PolarAngleAxis dataKey="subject" tick={{ fill: "#536074", fontSize: 11 }} />
-                <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
-                <Radar dataKey="score" stroke="#2457d6" fill="#2457d6" fillOpacity={0.18} strokeWidth={2} />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="score-list">
-            {categories.map((c) => (
-              <div key={c.key}>
-                <div className="score-row-top">
-                  <span className="score-row-label">
-                    {c.label}
-                    <span className="score-row-weight">weight {c.weight}%</span>
-                  </span>
-                  {c.score === null ? <Badge>n/a</Badge> : <Badge tone={scoreTone(c.score)}>{c.score}</Badge>}
-                </div>
-                <ProgressBar value={c.score ?? 0} />
-                <div className="score-row-detail">{c.detail}</div>
+        <div style={{ height: 340 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <RadarChart data={radarData} outerRadius="72%" margin={{ top: 16, right: 80, bottom: 16, left: 80 }}>
+              <PolarGrid stroke="#dfe5ee" />
+              <PolarAngleAxis dataKey="subject" tick={{ fill: "#536074", fontSize: 11 }} />
+              <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
+              <Radar dataKey="score" stroke="#2457d6" fill="#2457d6" fillOpacity={0.18} strokeWidth={2} isAnimationActive={false} />
+            </RadarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="score-grid">
+          {categories.map((c) => (
+            <div key={c.key}>
+              <div className="score-row-top">
+                <span className="score-row-label">
+                  {c.label}
+                  <span className="score-row-weight">weight {c.weight}%</span>
+                </span>
+                {c.score === null ? <Badge>n/a</Badge> : <Badge tone={scoreTone(c.score)}>{c.score}</Badge>}
               </div>
-            ))}
-          </div>
+              <ProgressBar value={c.score ?? 0} />
+              <div className="score-row-detail">{c.detail}</div>
+            </div>
+          ))}
         </div>
       </Card>
 

@@ -42,7 +42,7 @@ export default function Originality({ data }) {
                 <XAxis type="number" {...chartAxis} tickLine={false} axisLine={false} />
                 <YAxis type="category" dataKey="name" {...chartAxis} tickLine={false} axisLine={false} width={120} />
                 <Tooltip {...chartTooltip} cursor={{ fill: "#f1f4fa" }} />
-                <Bar dataKey="lines" name="Lines" fill="#2457d6" radius={[0, 4, 4, 0]} />
+                <Bar isAnimationActive={false} dataKey="lines" name="Lines" fill="#2457d6" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
