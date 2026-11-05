@@ -1,0 +1,17 @@
+{
+  "name": "github-code-analyzer-backend",
+  "version": "1.0.0",
+  "description": "Backend for GitHub Code Analyzer - clones repos and computes code quality metrics",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "simple-git": "^3.27.0"
+  }
+}
