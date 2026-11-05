@@ -41,16 +41,11 @@ async function countItems(pathname) {
   return Array.isArray(body) ? body.length : null;
 }
 
+// Commit counts, contributors and branches now come from the local clone, so
+// this costs a single API call and keeps the unauthenticated hourly limit usable.
 async function fetchRepoActivity(owner, repo) {
-  const daysAgo = (d) => new Date(Date.now() - d * 86400000).toISOString();
-  const base = `/repos/${owner}/${repo}`;
-  const [c30, c90, contributors] = await Promise.allSettled([
-    countItems(`${base}/commits?since=${encodeURIComponent(daysAgo(30))}&per_page=1`),
-    countItems(`${base}/commits?since=${encodeURIComponent(daysAgo(90))}&per_page=1`),
-    countItems(`${base}/contributors?per_page=1&anon=true`),
-  ]);
-  const val = (r) => (r.status === "fulfilled" ? r.value : null);
-  return { commits30: val(c30), commits90: val(c90), contributors: val(contributors) };
+  const pulls = await Promise.allSettled([countItems(`/repos/${owner}/${repo}/pulls?state=all&per_page=1`)]);
+  return { pullRequests: pulls[0].status === "fulfilled" ? pulls[0].value : null };
 }
 
 module.exports = { parseGithubUrl, fetchRepoMetadata, fetchRepoActivity };

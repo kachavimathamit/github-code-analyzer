@@ -37,12 +37,30 @@ Open the URL Vite prints (default `http://localhost:5173`). The frontend proxies
 
 All results appear in the dashboard, grouped into sections:
 
-- **Overview** - file/line/function counts, a 10-category weighted scorecard (radar + bars), overall grade (A-F) and prioritized recommendations
-- **Code quality** - language breakdown, maintainability index, cyclomatic complexity per function, function length distribution, max nesting depth per function, comment ratio, **duplication rate** (copy-paste detection), largest/most complex files
+- **Overview** - file/line/function counts, a 14-category weighted scorecard (radar + bars), overall grade (A-F) and prioritized recommendations
+- **Authorship & effort** - per-author commits/lines/files from git history, contribution balance, commit timeline (was the work spread out or crammed into one day), commit-message quality, and build artifacts that should have been gitignored
+- **Originality** - framework scaffolding detection (CRA, Vite, Next, Django, Spring, Android, Flutter and others), **effective student-written lines** after excluding generated and template code, files never touched after their first commit, and **cross-submission overlap** against every other repository you have analyzed
+- **Code quality** - language breakdown, maintainability index, cyclomatic complexity per function, function length distribution, nesting depth, comment ratio, **duplication rate**, largest/most complex files
+- **Robustness** - unresolved merge conflict markers, unbalanced-delimiter (broken file) detection, swallowed errors, SQL built by string concatenation, dangerous calls (`eval`, `os.system`, `innerHTML`, disabled TLS verification), debug leftovers, commented-out code, hardcoded paths, magic numbers, long parameter lists and oversized files
 - **Testing** - test-to-source code ratio (coverage proxy), detected test frameworks, CI presence
 - **Security** - **hardcoded secrets scan** (masked values) and **known vulnerable dependencies** via OSV.dev
-- **Dependencies** - dependency counts, outdated (major versions behind), deprecated and unpinned packages (npm + PyPI registries; package.json and requirements.txt)
-- **Code hygiene** - TODO/FIXME/HACK density, naming-convention consistency and very short names, potentially unused exports/functions (heuristic)
-- **Repository health** - license, README, CI, commit activity (30/90 days), contributors, last push
+- **Dependencies** - dependency counts, outdated (major versions behind), deprecated and unpinned packages (npm + PyPI registries)
+- **Architecture & completeness** - module import graph, circular imports, coupling (fan-in/fan-out), folder structure, **README quality score** and a project-completeness checklist
+- **Code hygiene** - TODO/FIXME/HACK density, naming-convention consistency, potentially unused exports/functions
+- **Repository health** - license, README, CI, commit activity, contributors, branches, pull requests, last push
 
-Only public repositories can be analyzed. GitHub API calls are unauthenticated by default (about 60 requests/hour per IP); set a `GITHUB_TOKEN` environment variable before starting the backend to raise the limit.
+### Notes on interpretation
+
+- **Overlap is not proof of copying.** Cross-submission matching ignores scaffolding, but shared tutorials, common libraries and forked starters still produce matches. Treat it as a prompt to look, not a verdict.
+- **Unused-code detection is a heuristic**; a library's public API can show up as unused.
+- Secrets found under test paths are rated low severity so fixtures do not distort the security score.
+
+## Requirements and limits
+
+Only public repositories can be analyzed. Repositories are cloned with full history so authorship can be measured; repositories over ~300 MB fall back to a shallow clone and the dashboard says so.
+
+Each analysis makes two GitHub API calls (commit, contributor and branch counts come from the clone instead). Unauthenticated access allows about 60 calls/hour per IP, so set a `GITHUB_TOKEN` environment variable before starting the backend when grading a batch of submissions:
+
+```bash
+GITHUB_TOKEN=ghp_yourtoken npm start
+```

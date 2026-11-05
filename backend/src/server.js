@@ -8,18 +8,25 @@ const simpleGit = require("simple-git");
 
 const { analyzeRepository } = require("./analyzer");
 const { analyzeDependencies } = require("./dependencies");
+const { analyzeGitHistory } = require("./gitHistory");
+const { analyzeArchitecture } = require("./architecture");
+const { analyzeOriginality } = require("./originality");
 const { computeScores } = require("./scoring");
 const { parseGithubUrl, fetchRepoMetadata, fetchRepoActivity } = require("./github");
-const { saveAnalysis, getAnalysisById, listAnalyses } = require("./db");
+const { saveAnalysis, getAnalysisById, listAnalyses, findSimilar, saveFingerprint } = require("./db");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-const ANALYSIS_VERSION = 2;
+const ANALYSIS_VERSION = 3;
+
+// Above this repository size (KB from the GitHub API) we fall back to a shallow
+// clone: full history would be too slow, and authorship metrics are degraded.
+const FULL_HISTORY_MAX_KB = 300000;
 
 app.use(cors());
 app.use(express.json());
 
-function buildHealth(metadata, activity, flags, testing) {
+function buildHealth(metadata, activity, flags, testing, authorship) {
   const pushedAt = metadata.pushed_at || null;
   const license = metadata.license && metadata.license.spdx_id && metadata.license.spdx_id !== "NOASSERTION" ? metadata.license : null;
   return {
@@ -33,9 +40,12 @@ function buildHealth(metadata, activity, flags, testing) {
     daysSincePush: pushedAt ? Math.floor((Date.now() - new Date(pushedAt).getTime()) / 86400000) : null,
     archived: Boolean(metadata.archived),
     openIssues: metadata.open_issues_count ?? null,
-    commits30: activity.commits30,
-    commits90: activity.commits90,
-    contributors: activity.contributors,
+    commits30: authorship && authorship.available ? authorship.commits30 : null,
+    commits90: authorship && authorship.available ? authorship.commits90 : null,
+    contributors: authorship && authorship.available ? authorship.contributorCount : null,
+    branches: authorship && authorship.available ? authorship.branches : null,
+    pullRequests: activity.pullRequests,
+    mergeCommits: authorship && authorship.available ? authorship.mergeCommits : null,
     hasCI: flags.hasCI,
     hasReadme: flags.hasReadme,
     hasGitignore: flags.hasGitignore,
@@ -67,17 +77,48 @@ app.post("/api/analyze", async (req, res) => {
     fs.mkdirSync(tempDir, { recursive: true });
     const activityPromise = fetchRepoActivity(owner, repo);
 
-    await simpleGit().clone(cloneUrl, tempDir, ["--depth", "1", "--single-branch"]);
+    // Full history is needed for authorship metrics; cap it for very large repos.
+    const shallow = (metadata.size || 0) > FULL_HISTORY_MAX_KB;
+    const cloneOptions = shallow
+      ? ["--depth", "100", "--single-branch", "--no-tags"]
+      : ["--single-branch", "--no-tags"];
+    await simpleGit().clone(cloneUrl, tempDir, cloneOptions);
+    const git = simpleGit(tempDir);
 
-    const { manifestPaths, flags, ...analysis } = analyzeRepository(tempDir);
-    const [{ dependencies, vulnerabilities }, activity] = await Promise.all([
+    const { manifestPaths, flags, internals, ...analysis } = analyzeRepository(tempDir);
+
+    const [{ dependencies, vulnerabilities }, activity, authorship] = await Promise.all([
       analyzeDependencies(tempDir, manifestPaths),
       activityPromise,
+      analyzeGitHistory(git, { shallow }),
     ]);
 
+    const architecture = analyzeArchitecture(tempDir, {
+      allRel: internals.allRel,
+      importsByFile: internals.importsByFile,
+      sourceFiles: internals.sourceFilePaths,
+      envUsage: internals.envUsage,
+      hasTests: analysis.testing.hasTests,
+      hasCI: flags.hasCI,
+      hasLicense: flags.hasLicenseFile || Boolean(metadata.license && metadata.license.spdx_id !== "NOASSERTION"),
+      godFiles: internals.godFiles.slice(0, 8),
+    });
+
+    const originality = analyzeOriginality({
+      allRel: internals.allRel,
+      fileRecords: internals.fileRecords,
+      fingerprintsByFile: internals.fingerprintsByFile,
+      singleTouchFiles: authorship.available ? authorship.singleTouchFiles : [],
+      repoUrl: metadata.html_url || cloneUrl,
+      store: { findSimilar },
+    });
+
     analysis.testing.frameworks = dependencies.testFrameworks;
-    const health = buildHealth(metadata, activity, flags, analysis.testing);
-    const scoring = computeScores({ ...analysis, dependencies, vulnerabilities, health });
+    const health = buildHealth(metadata, activity, flags, analysis.testing, authorship);
+    const scoring = computeScores({ ...analysis, dependencies, vulnerabilities, health, architecture, originality, authorship });
+
+    const { fingerprint, ...originalityPublic } = originality;
+    if (authorship.available) delete authorship.singleTouchFiles;
 
     const result = {
       analysisVersion: ANALYSIS_VERSION,
@@ -99,6 +140,9 @@ app.post("/api/analyze", async (req, res) => {
       dependencies,
       vulnerabilities,
       health,
+      authorship,
+      architecture,
+      originality: originalityPublic,
     };
 
     const id = saveAnalysis({
@@ -109,6 +153,14 @@ app.post("/api/analyze", async (req, res) => {
       stars: result.repo.stars,
       result,
     });
+
+    if (fingerprint.length) {
+      try {
+        saveFingerprint(result.repo.url, fingerprint);
+      } catch (err) {
+        console.error("fingerprint save failed", err.message);
+      }
+    }
 
     res.json({ id, ...result });
   } catch (err) {

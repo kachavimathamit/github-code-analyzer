@@ -30,21 +30,28 @@ function normalizeCodeLines(lines) {
   return out;
 }
 
+// Deterministic 1-in-4 sample of window hashes, kept per file so cross-repo
+// comparison can skip boilerplate files later.
+const SAMPLE_MASK = 3;
+
 class DuplicationDetector {
   constructor() {
     this.seen = new Map();
     this.files = [];
+    this.fingerprints = new Map();
   }
 
   addFile(path, lines) {
     const idx = this.files.length;
     const rec = { path, total: lines.length, dup: new Set() };
     this.files.push(rec);
+    const sampled = [];
 
     for (let s = 0; s + WINDOW <= lines.length; s++) {
       let joined = "";
       for (let k = 0; k < WINDOW; k++) joined += lines[s + k].text + "\n";
       const key = cyrb53(joined);
+      if (key % SAMPLE_MASK === 0 && sampled.length < 400) sampled.push(key);
       const prev = this.seen.get(key);
       if (prev === undefined) {
         this.seen.set(key, { file: idx, pos: s, marked: false });
@@ -58,6 +65,7 @@ class DuplicationDetector {
         for (let k = 0; k < WINDOW; k++) other.dup.add(prev.pos + k);
       }
     }
+    if (sampled.length) this.fingerprints.set(path, sampled);
   }
 
   result() {

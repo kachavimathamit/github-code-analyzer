@@ -2,23 +2,31 @@ import ScoreGauge from "./ScoreGauge";
 import { Card } from "./ui";
 import Overview from "./sections/Overview";
 import Quality from "./sections/Quality";
+import Authorship from "./sections/Authorship";
+import Originality from "./sections/Originality";
+import Robustness from "./sections/Robustness";
+import Architecture from "./sections/Architecture";
 import { Security, Dependencies } from "./sections/Security";
 import { Testing, Hygiene } from "./sections/Hygiene";
 import Repository from "./sections/Repository";
 
 const NAV = [
   ["sec-overview", "Overview"],
+  ["sec-authorship", "Authorship"],
+  ["sec-originality", "Originality"],
   ["sec-quality", "Code quality"],
+  ["sec-robustness", "Robustness"],
   ["sec-testing", "Testing"],
   ["sec-security", "Security"],
   ["sec-dependencies", "Dependencies"],
+  ["sec-architecture", "Architecture"],
   ["sec-hygiene", "Hygiene"],
   ["sec-repository", "Repository"],
 ];
 
 export default function Dashboard({ data, onReanalyze, busy }) {
   const { repo, summary } = data;
-  const legacy = !data.analysisVersion || data.analysisVersion < 2;
+  const legacy = !data.analysisVersion || data.analysisVersion < 3;
 
   return (
     <div className="dashboard">
@@ -59,10 +67,14 @@ export default function Dashboard({ data, onReanalyze, busy }) {
             ))}
           </nav>
           <Overview data={data} />
+          <Authorship data={data} />
+          <Originality data={data} />
           <Quality data={data} />
+          <Robustness data={data} />
           <Testing data={data} />
           <Security data={data} />
           <Dependencies data={data} />
+          <Architecture data={data} />
           <Hygiene data={data} />
           <Repository data={data} />
         </>

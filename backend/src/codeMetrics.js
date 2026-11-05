@@ -18,6 +18,27 @@ const NOT_FUNCTION_NAMES = new Set([
   "if", "for", "while", "switch", "catch", "function", "return", "else", "with", "do", "try", "foreach", "new", "throw", "case", "delete", "typeof", "await", "yield",
 ]);
 
+// A "/" begins a regex literal (rather than division) only in these positions.
+const REGEX_AFTER_CHAR = /[(,=:[!&|?{};+\-*%~^<>]$/;
+const REGEX_AFTER_WORD = /\b(?:return|typeof|instanceof|in|of|new|delete|void|throw|do|else|yield|await|case)$/;
+
+// Consumes a regex literal starting at `start`; returns the index of its
+// closing slash, or -1 when the line holds no closing slash.
+function regexEnd(line, start) {
+  let inClass = false;
+  for (let j = start + 1; j < line.length; j++) {
+    const c = line[j];
+    if (c === "\\") {
+      j++;
+      continue;
+    }
+    if (c === "[") inClass = true;
+    else if (c === "]") inClass = false;
+    else if (c === "/" && !inClass) return j;
+  }
+  return -1;
+}
+
 // ---------------------------------------------------------------------------
 // Line preprocessing: strips comments and string contents so later regexes work
 // on code only.
@@ -26,6 +47,7 @@ function preprocess(content, language) {
   const raw = content.split(/\r\n|\r|\n/);
   const hashStyle = HASH_LANGS.has(language);
   const allowTriple = language === "Python";
+  const jsLike = language === "JavaScript" || language === "TypeScript";
   let inBlock = false;
   let tripleQuote = null;
   const out = new Array(raw.length);
@@ -105,6 +127,19 @@ function preprocess(content, language) {
           comment += "/*";
           i += 2;
           continue;
+        }
+        // A regex literal such as /['"]/ must not be read as a string opener.
+        if (jsLike) {
+          const prev = code.trimEnd();
+          if (prev === "" || REGEX_AFTER_CHAR.test(prev) || REGEX_AFTER_WORD.test(prev)) {
+            const end = regexEnd(line, i);
+            if (end !== -1) {
+              code += "RE";
+              i = end + 1;
+              while (i < n && /[a-z]/i.test(line[i])) i++;
+              continue;
+            }
+          }
         }
       }
       code += ch;
@@ -234,6 +269,44 @@ function findBraceEnd(lines, idx, arrow) {
     }
   }
   return lines.length - 1;
+}
+
+// Counts declared parameters by scanning the signature's parenthesis group.
+function countParams(lines, startIdx, language) {
+  const limit = Math.min(lines.length, startIdx + 8);
+  let depth = 0;
+  let started = false;
+  let params = "";
+  for (let i = startIdx; i < limit; i++) {
+    const text = lines[i].code;
+    for (const ch of text) {
+      if (ch === "(") {
+        depth++;
+        if (depth === 1) {
+          started = true;
+          continue;
+        }
+      } else if (ch === ")") {
+        depth--;
+        if (depth === 0 && started) {
+          const body = params.trim();
+          if (!body) return 0;
+          let level = 0;
+          let count = 1;
+          for (const c of body) {
+            if ("([{<".includes(c)) level++;
+            else if (")]}>".includes(c)) level--;
+            else if (c === "," && level === 0) count++;
+          }
+          if ((language === "Python" || language === "Ruby") && /^(?:self|cls)\b/.test(body)) count--;
+          return Math.max(0, count);
+        }
+      }
+      if (started && depth >= 1) params += ch;
+    }
+    params += " ";
+  }
+  return 0;
 }
 
 function indentOf(text) {
@@ -388,6 +461,7 @@ function computeFunctionMetrics(lines, language) {
       length: f.end - f.start + 1,
       complexity: 1 + f.decisions,
       nesting: Math.max(0, f.maxDepth - depth[f.start]),
+      params: countParams(lines, f.start, language),
       iife: f.iife,
     })),
     fileDecisions,

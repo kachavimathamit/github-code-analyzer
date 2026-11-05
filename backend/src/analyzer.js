@@ -5,6 +5,8 @@ const { preprocess, computeFunctionMetrics, analyzeNaming } = require("./codeMet
 const { DuplicationDetector, normalizeCodeLines } = require("./duplication");
 const { isTestFile, extractTodos, collectExports, findUnusedExports } = require("./hygiene");
 const { scanSecrets, scanFilename } = require("./secrets");
+const { scanPatterns, checkStructure, summarizeFindings } = require("./patterns");
+const { extractImports } = require("./architecture");
 
 const LANGUAGE_MAP = {
   ".js": "JavaScript", ".jsx": "JavaScript", ".mjs": "JavaScript", ".cjs": "JavaScript",
@@ -37,6 +39,11 @@ const MAX_FILES = 8000;
 const LONG_FUNCTION_LINES = 50;
 const HIGH_COMPLEXITY = 10;
 const DEEP_NESTING = 4;
+const MANY_PARAMS = 5;
+const GOD_FILE_LINES = 500;
+// Only treat a project as needing a committed .env example when it actually
+// loads a .env file, not merely when it reads process.env.NODE_ENV.
+const ENV_USAGE = /\bdotenv\b|load_dotenv|\.env\b.*(?:config|load)|require\(["']dotenv/i;
 
 const r1 = (n) => Math.round(n * 10) / 10;
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -109,6 +116,14 @@ function analyzeRepository(rootDir) {
   const dup = new DuplicationDetector();
   const testing = { testFiles: 0, testLines: 0, sourceFiles: 0, sourceLines: 0 };
   const manifestPaths = [];
+  const patternFindings = [];
+  const structuralIssues = [];
+  const importsByFile = new Map();
+  const sourceFilePaths = [];
+  const godFiles = [];
+  let magicNumbers = 0;
+  let longParamCount = 0;
+  let envUsage = false;
 
   let totalFiles = 0;
   let analyzedFiles = 0;
@@ -166,6 +181,7 @@ function analyzeRepository(rootDir) {
 
     let report;
     if (CODE_LANGUAGES.has(language)) {
+      const rawLines = text.split(/\r\n|\r|\n/);
       const lines = preprocess(text, language);
       let blank = 0;
       let comment = 0;
@@ -188,9 +204,20 @@ function analyzeRepository(rootDir) {
         testing.sourceLines += code;
         for (const f of fm.functions) {
           if (f.iife) continue;
-          fnStats.push({ file: rel, name: f.name, line: f.line, length: f.length, complexity: f.complexity, nesting: f.nesting });
+          fnStats.push({ file: rel, name: f.name, line: f.line, length: f.length, complexity: f.complexity, nesting: f.nesting, params: f.params });
+          if (f.params > MANY_PARAMS) longParamCount++;
         }
+        if (code > GOD_FILE_LINES) godFiles.push({ path: rel, codeLines: code, functions: functionCount });
       }
+
+      const pat = scanPatterns(rel, rawLines, lines, language, isTest);
+      patternFindings.push(...pat.findings);
+      magicNumbers += pat.magicNumbers;
+      const structural = checkStructure(rel, lines, language);
+      if (structural) structuralIssues.push(structural);
+      if (!envUsage && ENV_USAGE.test(text)) envUsage = true;
+      importsByFile.set(rel, extractImports(rawLines, lines, language));
+      sourceFilePaths.push(rel);
 
       const naming = analyzeNaming(lines, language);
       const nb = (namingByLang[language] ||= { camel: 0, snake: 0, pascal: 0, constant: 0, neutral: 0, short: 0, total: 0 });
@@ -287,6 +314,9 @@ function analyzeRepository(rootDir) {
     deepestNesting: nFn ? Math.max(...fnStats.map((f) => f.nesting)) : 0,
     deepCount: fnStats.filter((f) => f.nesting >= DEEP_NESTING).length,
     nestingThreshold: DEEP_NESTING,
+    longParamCount,
+    paramThreshold: MANY_PARAMS,
+    maxParams: nFn ? Math.max(...fnStats.map((f) => f.params || 0)) : 0,
     longest: pick((a, b) => b.length - a.length),
     mostComplex: pick((a, b) => b.complexity - a.complexity),
     deepest: pick((a, b) => b.nesting - a.nesting || b.length - a.length),
@@ -415,6 +445,24 @@ function analyzeRepository(rootDir) {
     secrets,
     flags,
     manifestPaths,
+    robustness: summarizeFindings(patternFindings, structuralIssues, {
+      magicNumbers,
+      magicNumberDensity: totalCodeLines ? r2((magicNumbers / totalCodeLines) * 1000) : 0,
+      longParamCount,
+      paramThreshold: MANY_PARAMS,
+      godFiles: godFiles.sort((a, b) => b.codeLines - a.codeLines).slice(0, 8),
+      godFileCount: godFiles.length,
+      godFileThreshold: GOD_FILE_LINES,
+    }),
+    internals: {
+      allRel,
+      importsByFile,
+      sourceFilePaths,
+      envUsage,
+      fingerprintsByFile: dup.fingerprints,
+      fileRecords: fileReports.map((f) => ({ path: f.path, codeLines: f.codeLines, isTest: f.isTest, language: f.language })),
+      godFiles,
+    },
   };
 }
 

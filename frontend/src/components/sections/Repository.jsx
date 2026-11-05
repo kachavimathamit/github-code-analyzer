@@ -17,6 +17,8 @@ export default function Repository({ data }) {
         <Kpi label="Commits (90 days)" value={fmt(h.commits90)} tone={activityTone} />
         <Kpi label="Contributors" value={fmt(h.contributors)} />
         <Kpi label="Open issues" value={fmt(h.openIssues)} hint="includes pull requests" />
+        <Kpi label="Branches" value={fmt(h.branches)} />
+        <Kpi label="Pull requests" value={fmt(h.pullRequests)} hint={h.mergeCommits !== null ? `${fmt(h.mergeCommits)} merge commits` : undefined} />
       </div>
       <div className="grid grid-2">
         <Card title="Activity">
